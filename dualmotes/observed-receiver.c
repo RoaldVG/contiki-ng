@@ -170,8 +170,8 @@ PROCESS_THREAD(observed_receiver_process, ev, data)
   uip_ipaddr_t ipaddr;
   struct uip_ds6_addr *root_if;
 
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 2);
-  uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
+  //uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 2);
+  //uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
   PROCESS_BEGIN();
