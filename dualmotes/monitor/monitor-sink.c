@@ -57,8 +57,8 @@
 
 static struct uip_udp_conn *server_conn;
 
-PROCESS(white_sink_process, "White sink process");
-AUTOSTART_PROCESSES(&white_sink_process);
+PROCESS(monitor_sink_process, "Monitor sink process");
+AUTOSTART_PROCESSES(&monitor_sink_process);
 
 // sender power
 // possible values =  0dBm = 31;  -1dBm = 27;  -3dBm = 23;  -5dBm = 19; 
@@ -124,7 +124,7 @@ print_local_addresses(void)
   }
 }
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(white_sink_process, ev, data)
+PROCESS_THREAD(monitor_sink_process, ev, data)
 {
   uip_ipaddr_t ipaddr;
   struct uip_ds6_addr *root_if;

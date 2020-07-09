@@ -1,4 +1,4 @@
-CONTIKI_PROJECT =  observer-sender observed-sender observed-receiver observer-sink 
+CONTIKI_PROJECT =  monitor-sender monitor-sink 
 all:$(CONTIKI_PROJECT)
 
 CONTIKI = ..

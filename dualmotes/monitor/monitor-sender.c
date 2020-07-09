@@ -67,6 +67,9 @@
 
 #define UIP_CONF_MAX_ROUTES   10
 
+// Bit-width of IO communication with observer
+#define IO_WIDTH 11
+
 /*
  * Interval between consecutive probes of the triger bit P1.0
  */
@@ -102,8 +105,8 @@ static uip_ipaddr_t server_ipaddr;
 static void send_packet(gpio_hal_pin_mask_t pin_mask);
 
 /*---------------------------------------------------------------------------*/
-PROCESS(observer_sender_process, "Observer sender process");
-AUTOSTART_PROCESSES(&observer_sender_process);
+PROCESS(monitor_sender_process, "Monitor sender process");
+AUTOSTART_PROCESSES(&monitor_sender_process);
 /*--------------------------------------------------------------------------------
  * SETTING THE GPIOS
  *-------------------------------------------------------------------------------*/
@@ -115,20 +118,26 @@ static gpio_hal_event_handler_t msg_handler = {
 void
 GPIOS_init(void)
 {
+  GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
+  
   GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
-  GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
-  GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
+	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
+  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
+	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
+  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
 
-  // Configure PA2 to raise an interrupt on a rising edge
-  GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(2));
-  GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(2));
-  GPIO_DETECT_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(2));
-  GPIO_TRIGGER_SINGLE_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(2));
-  GPIO_DETECT_RISING(GPIO_A_BASE,GPIO_PIN_MASK(2));
-  GPIO_ENABLE_INTERRUPT(GPIO_A_BASE,GPIO_PIN_MASK(2));
+	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
+  GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
+
+  // Configure PA7 to raise an interrupt on a any edge
+  GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	GPIO_DETECT_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	GPIO_TRIGGER_BOTH_EDGES(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	GPIO_ENABLE_INTERRUPT(GPIO_A_BASE,GPIO_PIN_MASK(7));
   gpio_hal_register_handler(&msg_handler);
 }
 /*---------------------------------------------------------------------------*/
@@ -136,14 +145,19 @@ uint8_t
 read_GPIOS(void)
 {
 	//reading the value in each pin
-	uint8_t  blackseqno=0;
+	uint16_t  blackseqno=0;
 
-	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0)))	blackseqno=blackseqno+1;		
-	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1)))  blackseqno=blackseqno+2;
-	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(4)))	blackseqno=blackseqno+4; 
-	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5)))	blackseqno=blackseqno+8;
-	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1)))	blackseqno=blackseqno+16; 
-	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2)))	blackseqno=blackseqno+32; 
+	if (GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6)))	blackseqno=blackseqno+1;		
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0)))  blackseqno=blackseqno+2;
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1)))	blackseqno=blackseqno+4; 
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(2)))	blackseqno=blackseqno+8;
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(3)))	blackseqno=blackseqno+16; 
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(4)))	blackseqno=blackseqno+32; 
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5)))  blackseqno=blackseqno+64;
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(6)))	blackseqno=blackseqno+128; 
+	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(0)))	blackseqno=blackseqno+256;
+	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1)))	blackseqno=blackseqno+512; 
+	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2)))	blackseqno=blackseqno+1024; 
 
 	return blackseqno;
 }
@@ -228,7 +242,7 @@ set_global_address(void)
 #endif
 }
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(observer_sender_process, ev, data)
+PROCESS_THREAD(monitor_sender_process, ev, data)
 {
   static struct etimer periodic;
   PROCESS_BEGIN();
@@ -262,8 +276,7 @@ PROCESS_THREAD(observer_sender_process, ev, data)
 	NETSTACK_RADIO.set_value(RADIO_PARAM_TXPOWER, power);
 
   // init ADC on A5, at 64 bit rate
-  //adc_init();
-  adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC1);
+  adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC2);
   adc_zoul.configure(ZOUL_SENSORS_CONFIGURE_TYPE_DECIMATION_RATE, SOC_ADC_ADCCON_DIV_64);
 
 	GPIOS_init();
@@ -274,7 +287,7 @@ PROCESS_THREAD(observer_sender_process, ev, data)
     PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
 
 		counter++;
-		int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC1);
+		int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC2);
 		ADCResult += ADC_val;
     etimer_reset(&periodic);
   }

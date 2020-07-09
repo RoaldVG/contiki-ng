@@ -50,12 +50,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define 
-
 #include "dev/gpio.h"
 
 #define DEBUG DEBUG_FULL
 #include "net/ipv6/uip-debug.h"
+
+// Bit-width of IO communication with observer
+#define IO_WIDTH 11
 
 //#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
 #define UIP_CONF_MAX_ROUTES   10
@@ -82,31 +83,45 @@ struct testmsg {
 static struct uip_udp_conn *server_conn;
 
 /*---------------------------------------------------------------------------*/
-PROCESS(observed_receiver_process, "observed receiver process");
+PROCESS(observed_receiver_process, "Observed receiver process");
 AUTOSTART_PROCESSES(&observed_receiver_process);
 /*---------------------------------------------------------------------------*/
 void
 GPIOS_init(void)
 {
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(2));		//GPIO PA2
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(0));		//GPIO PC0
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(1));		//GPIO PC1
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(4));		//GPIO PC4
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(5));		//GPIO PC5
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(3),GPIO_PIN_MASK(1));		//GPIO PD1
-	GPIO_SET_OUTPUT(GPIO_PORT_TO_BASE(3),GPIO_PIN_MASK(2));		//GPIO PD2
+	GPIO_SET_OUTPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
+	GPIO_SET_OUTPUT(GPIO_A_BASE,GPIO_PIN_MASK(7));		//GPIO PA7
+  
+ 	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
+  GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+  GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
+	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
+  GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
+
+	GPIO_SET_OUTPUT(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
+  GPIO_SET_OUTPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+	GPIO_SET_OUTPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 }
 /*---------------------------------------------------------------------------*/
 void
 clear_GPIOS(void)
 {
 //clear all output pins
-	GPIO_CLR_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(0));		//GPIO PC0
-	GPIO_CLR_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(1));		//GPIO PC1
-	GPIO_CLR_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(4));		//GPIO PC4
-	GPIO_CLR_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(5));		//GPIO PC5
-	GPIO_CLR_PIN(GPIO_PORT_TO_BASE(3),GPIO_PIN_MASK(1));		//GPIO PD1
-	GPIO_CLR_PIN(GPIO_PORT_TO_BASE(3),GPIO_PIN_MASK(2));		//GPIO PD2
+	GPIO_CLR_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
+	
+ 	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
+  GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+  GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
+	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
+  GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
+
+	GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
+  GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+	GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -119,29 +134,30 @@ tcpip_handler(void)
     printf("DATA recv from %d\n", uip_udp_conn->ripaddr.u8[sizeof(uip_udp_conn->ripaddr.u8) - 1]);
   }
 
-  static uint8_t seqno_bits[6];			
-  uint8_t i;
-  for (i = 0; i < 6; i++) {
-    seqno_bits[i] = msg.blackseqno & (1 << i) ? 1 : 0;
-  }		//least significant bit in seqno_bits[0]
-	//struct testmsg msg;
-	//memcpy(&msg, packetbuf_dataptr(), sizeof(msg));
-/*
- *      convert seqno into bits and set the GPIO bits accordingly
- */
-	clear_GPIOS();
+  static uint8_t seqno_bits[IO_WIDTH];			
+	uint8_t i;
+	for (i = 0; i < IO_WIDTH; i++) {
+		seqno_bits[i] = msg.blackseqno & (1 << i) ? 1 : 0;
+	}		//least significant bit in seqno_bits[0]
 
-	if ( seqno_bits[0]==1 )	GPIO_SET_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(0));       //  write a 1 in C0
-	if ( seqno_bits[1]==1 )	GPIO_SET_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(1));       //  write a 1 in C1
-	if ( seqno_bits[2]==1 )	GPIO_SET_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(4));       //  write a 1 in C4
-	if ( seqno_bits[3]==1 )	GPIO_SET_PIN(GPIO_PORT_TO_BASE(2),GPIO_PIN_MASK(5));       //  write a 1 in C5
-	if ( seqno_bits[4]==1 )	GPIO_SET_PIN(GPIO_PORT_TO_BASE(3),GPIO_PIN_MASK(1));       //  write a 1 in D1
-	if ( seqno_bits[5]==1 )	GPIO_SET_PIN(GPIO_PORT_TO_BASE(3),GPIO_PIN_MASK(2));       //  write a 1 in D2
-
-	if (GPIO_READ_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(2)) == 0)
-		GPIO_SET_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(2));
+    clear_GPIOS();
+    
+	if ( seqno_bits[0]==1 )		GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6));       //  write a 1 in A6
+	if ( seqno_bits[1]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0));       //  write a 1 in C0
+	if ( seqno_bits[2]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1));       //  write a 1 in C1
+	if ( seqno_bits[3]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(2));       //  write a 1 in C2
+	if ( seqno_bits[4]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(3));       //  write a 1 in C3
+	if ( seqno_bits[5]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(4));       //  write a 1 in C4
+	if ( seqno_bits[6]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5));       //  write a 1 in C5
+	if ( seqno_bits[7]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(6));       //  write a 1 in C6
+	if ( seqno_bits[8]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(0));       //  write a 1 in D0
+	if ( seqno_bits[9]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));       //  write a 1 in D1
+	if ( seqno_bits[10]==1 )	GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));       //  write a 1 in D2
+	
+	if (GPIO_READ_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7)) == 0)
+		GPIO_SET_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
 	else
-		GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(2));
+		GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
 }
 /*---------------------------------------------------------------------------*/
 static void
