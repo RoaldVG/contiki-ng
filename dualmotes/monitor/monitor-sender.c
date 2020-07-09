@@ -118,27 +118,27 @@ static gpio_hal_event_handler_t msg_handler = {
 void
 GPIOS_init(void)
 {
-  GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
+    GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
   
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+    GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
 	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+    GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+    GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
 	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
 	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
-  GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
+    GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
 
 	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
-  GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+    GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
 	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 
-  // Configure PA7 to raise an interrupt on a any edge
-  GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(7));
+    // Configure PA7 to raise an interrupt on a any edge
+    GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_DETECT_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_TRIGGER_BOTH_EDGES(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_ENABLE_INTERRUPT(GPIO_A_BASE,GPIO_PIN_MASK(7));
-  gpio_hal_register_handler(&msg_handler);
+    gpio_hal_register_handler(&msg_handler);
 }
 /*---------------------------------------------------------------------------*/
 uint8_t
@@ -148,12 +148,12 @@ read_GPIOS(void)
 	uint16_t  blackseqno=0;
 
 	if (GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6)))	blackseqno=blackseqno+1;		
-	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0)))  blackseqno=blackseqno+2;
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0)))    blackseqno=blackseqno+2;
 	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1)))	blackseqno=blackseqno+4; 
 	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(2)))	blackseqno=blackseqno+8;
 	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(3)))	blackseqno=blackseqno+16; 
 	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(4)))	blackseqno=blackseqno+32; 
-	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5)))  blackseqno=blackseqno+64;
+	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5)))    blackseqno=blackseqno+64;
 	if (GPIO_READ_PIN(GPIO_C_BASE,GPIO_PIN_MASK(6)))	blackseqno=blackseqno+128; 
 	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(0)))	blackseqno=blackseqno+256;
 	if (GPIO_READ_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1)))	blackseqno=blackseqno+512; 
@@ -180,39 +180,39 @@ send_packet(gpio_hal_pin_mask_t pin_mask)
 	uip_udp_packet_sendto(client_conn, &msg, sizeof(msg),
 							&server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 
-  ADCResult=0;
-  counter=0;
+    ADCResult=0;
+    counter=0;
 }
 /*---------------------------------------------------------------------------*/
 static void
 print_local_addresses(void)
 {
-  int i;
-  uint8_t state;
+    int i;
+    uint8_t state;
 
-  PRINTF("Client IPv6 addresses: ");
-  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
-    state = uip_ds6_if.addr_list[i].state;
-    if(uip_ds6_if.addr_list[i].isused &&
-       (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
-      PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
-      PRINTF("\n");
-      /* hack to make address "final" */
-      if (state == ADDR_TENTATIVE) {
-	uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
-      }
+    PRINTF("Client IPv6 addresses: ");
+    for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
+        state = uip_ds6_if.addr_list[i].state;
+        if(uip_ds6_if.addr_list[i].isused &&
+        (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
+        PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
+        PRINTF("\n");
+        /* hack to make address "final" */
+        if (state == ADDR_TENTATIVE) {
+        uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
+        }
+        }
     }
-  }
 }
 /*---------------------------------------------------------------------------*/
 static void
 set_global_address(void)
 {
-  uip_ipaddr_t ipaddr;
+    uip_ipaddr_t ipaddr;
 
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 102);
-  //uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
-  uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
+    uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 102);
+    //uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
+    uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
 /* The choice of server address determines its 6LoWPAN header compression.
  * (Our address will be compressed Mode 3 since it is derived from our
@@ -235,7 +235,7 @@ set_global_address(void)
    uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 1);
 #elif 1
 /* Mode 2 - 16 bits inline */
-  uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 0);
+    uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 0);
 #else
 /* Mode 3 - derived from server link-local (MAC) address */
   uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0x0250, 0xc2ff, 0xfea8, 0xcd1a); //redbee-econotag
@@ -244,54 +244,50 @@ set_global_address(void)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(monitor_sender_process, ev, data)
 {
-  static struct etimer periodic;
-  PROCESS_BEGIN();
+    static struct etimer periodic;
+    PROCESS_BEGIN();
 
-  PROCESS_PAUSE();
+    PROCESS_PAUSE();
 
-  set_global_address();
+    set_global_address();
 
-  PRINTF("UDP client process started nbr:%d routes:%d\n",
+    PRINTF("UDP client process started nbr:%d routes:%d\n",
          NBR_TABLE_CONF_MAX_NEIGHBORS, UIP_CONF_MAX_ROUTES);
 
-  print_local_addresses();
+    print_local_addresses();
 
-  /* new connection with remote host */
-  client_conn = udp_new(&server_ipaddr, UIP_HTONS(UDP_SERVER_PORT), NULL); 
-  if(client_conn == NULL) {
-    PRINTF("No UDP connection available, exiting the process!\n");
-    PROCESS_EXIT();
-  }
-  udp_bind(client_conn, UIP_HTONS(UDP_CLIENT_PORT)); 
+    /* new connection with remote host */
+    client_conn = udp_new(&server_ipaddr, UIP_HTONS(UDP_SERVER_PORT), NULL); 
+    if(client_conn == NULL) {
+        PRINTF("No UDP connection available, exiting the process!\n");
+        PROCESS_EXIT();
+    }
+    udp_bind(client_conn, UIP_HTONS(UDP_CLIENT_PORT)); 
 
-  PRINTF("Created a connection with the server ");
-  PRINT6ADDR(&client_conn->ripaddr);
-  PRINTF(" local/remote port %u/%u\n",
-	UIP_HTONS(client_conn->lport), UIP_HTONS(client_conn->rport));
+    PRINTF("Created a connection with the server ");
+    PRINT6ADDR(&client_conn->ripaddr);
+    PRINTF(" local/remote port %u/%u\n",
+        UIP_HTONS(client_conn->lport), UIP_HTONS(client_conn->rport));
 
-	//flag=(GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(2)));
-
-	// adjust power
-	//cc2420_set_txpower(power);
 	NETSTACK_RADIO.set_value(RADIO_PARAM_TXPOWER, power);
 
-  // init ADC on A5, at 64 bit rate
-  adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC2);
-  adc_zoul.configure(ZOUL_SENSORS_CONFIGURE_TYPE_DECIMATION_RATE, SOC_ADC_ADCCON_DIV_64);
+    // init ADC on A5, at 64 bit rate
+    adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC2);
+    adc_zoul.configure(ZOUL_SENSORS_CONFIGURE_TYPE_DECIMATION_RATE, SOC_ADC_ADCCON_DIV_64);
 
-	GPIOS_init();
-  counter = 0;
+    GPIOS_init();
+    counter = 0;
 
-  etimer_set(&periodic, ADC_READ_INTERVAL);
-  while(1) {
-    PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
+    etimer_set(&periodic, ADC_READ_INTERVAL);
+    while(1) {
+        PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
 
-		counter++;
-		int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC2);
-		ADCResult += ADC_val;
-    etimer_reset(&periodic);
-  }
+            counter++;
+            int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC2);
+            ADCResult += ADC_val;
+        etimer_reset(&periodic);
+    }
 
-  PROCESS_END();
+    PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

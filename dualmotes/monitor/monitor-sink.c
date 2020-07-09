@@ -92,51 +92,53 @@ struct whitemsg {
 static void
 tcpip_handler(void)
 {
-  rtimer_clock_t rtime = RTIMER_NOW();		//received time (for the latency)
-  struct whitemsg msg;
-  if(uip_newdata()) {
-	memcpy(&msg, uip_appdata, sizeof(msg));
-	received ++;
-	uint16_t timestamp = packetbuf_attr(PACKETBUF_ATTR_TIMESTAMP);
-	printf("%d,%d,%d,%d,%li,%d,%u,%u,%u,%lu\n",
-					UIP_IP_BUF->srcipaddr.u8[sizeof(UIP_IP_BUF->srcipaddr.u8) - 1], received,msg.blackseqno,msg.whiteseqno,
-                                        msg.energy,msg.counter_ADC, 
-										msg.timestamp_app,msg.timestamp_mac,timestamp,rtime);
-  }
+    rtimer_clock_t rtime = RTIMER_NOW();		//received time (for the latency)
+    struct whitemsg msg;
+    if(uip_newdata()) {
+        memcpy(&msg, uip_appdata, sizeof(msg));
+        received ++;
+        uint16_t timestamp = packetbuf_attr(PACKETBUF_ATTR_TIMESTAMP);
+        printf("%x,%" PRIu16 ",%" PRIu16 ",%" PRIu16 ",%" PRIu32 ",%" PRIu16 
+                    ",%" PRIu16 ",%" PRIu16 ",%" PRIu16 ",%lu\n",
+                    UIP_IP_BUF->srcipaddr.u8[sizeof(UIP_IP_BUF->srcipaddr.u8) - 1], 
+                    received,msg.blackseqno,msg.whiteseqno,
+                    msg.energy,msg.counter_ADC, 
+                    msg.timestamp_app,msg.timestamp_mac,timestamp,rtime);
+    }
 }
 static void
 print_local_addresses(void)
 {
-  int i;
-  uint8_t state;
+    int i;
+    uint8_t state;
 
-  PRINTF("Server IPv6 addresses: ");
-  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
-    state = uip_ds6_if.addr_list[i].state;
-    if(state == ADDR_TENTATIVE || state == ADDR_PREFERRED) {
-      PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
-      PRINTF("\n");
-      /* hack to make address "final" */
-      if (state == ADDR_TENTATIVE) {
-	uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
-      }
+    PRINTF("Server IPv6 addresses: ");
+    for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
+        state = uip_ds6_if.addr_list[i].state;
+        if(state == ADDR_TENTATIVE || state == ADDR_PREFERRED) {
+        PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
+        PRINTF("\n");
+        /* hack to make address "final" */
+        if (state == ADDR_TENTATIVE) {
+        uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
+        }
+        }
     }
-  }
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(monitor_sink_process, ev, data)
 {
-  uip_ipaddr_t ipaddr;
-  struct uip_ds6_addr *root_if;
+    uip_ipaddr_t ipaddr;
+    struct uip_ds6_addr *root_if;
 
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 0);
-  //uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
-  uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
+    uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 0);
+    //uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
+    uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
-  PROCESS_BEGIN();
-  PROCESS_PAUSE();
+    PROCESS_BEGIN();
+    PROCESS_PAUSE();
 
-  #if UIP_CONF_ROUTER
+#if UIP_CONF_ROUTER
 /* The choice of server address determines its 6LoWPAN header compression.
  * Obviously the choice made here must also be selected in udp-client.c.
  *
@@ -155,49 +157,49 @@ PROCESS_THREAD(monitor_sink_process, ev, data)
    uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 1);
 #elif 1
 /* Mode 2 - 16 bits inline */
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 0);
+    uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 0);
 #else
 /* Mode 3 - derived from link local (MAC) address */
   uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
   uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
 #endif
 
-  uip_ds6_addr_add(&ipaddr, 0, ADDR_MANUAL);
-  root_if = uip_ds6_addr_lookup(&ipaddr);
-  if(root_if != NULL) {
-    rpl_dag_t *dag;
-    dag = rpl_set_root(RPL_DEFAULT_INSTANCE,(uip_ip6addr_t *)&ipaddr);
-    uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
-    rpl_set_prefix(dag, &ipaddr, 64);
-    PRINTF("created a new RPL dag\n");
-  } else {
-    PRINTF("failed to create a new RPL DAG\n");
-  }
+    uip_ds6_addr_add(&ipaddr, 0, ADDR_MANUAL);
+    root_if = uip_ds6_addr_lookup(&ipaddr);
+    if(root_if != NULL) {
+        rpl_dag_t *dag;
+        dag = rpl_set_root(RPL_DEFAULT_INSTANCE,(uip_ip6addr_t *)&ipaddr);
+        uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
+        rpl_set_prefix(dag, &ipaddr, 64);
+        PRINTF("created a new RPL dag\n");
+    } else {
+        PRINTF("failed to create a new RPL DAG\n");
+    }
 #endif /* UIP_CONF_ROUTER */
 
-  print_local_addresses();
+    print_local_addresses();
 
-  /* The data sink runs with a 100% duty cycle in order to ensure high 
-     packet reception rates. */
-  NETSTACK_MAC.off();
+    /* The data sink runs with a 100% duty cycle in order to ensure high 
+        packet reception rates. */
+    NETSTACK_MAC.off();
 
-  server_conn = udp_new(NULL, UIP_HTONS(UDP_CLIENT_PORT), NULL);
-  if(server_conn == NULL) {
-    PRINTF("No UDP connection available, exiting the process!\n");
-    PROCESS_EXIT();
-  }
-  udp_bind(server_conn, UIP_HTONS(UDP_SERVER_PORT));
+    server_conn = udp_new(NULL, UIP_HTONS(UDP_CLIENT_PORT), NULL);
+    if(server_conn == NULL) {
+        PRINTF("No UDP connection available, exiting the process!\n");
+        PROCESS_EXIT();
+    }
+    udp_bind(server_conn, UIP_HTONS(UDP_SERVER_PORT));
 
-  PRINTF("Created a server connection with remote address ");
-  PRINT6ADDR(&server_conn->ripaddr);
-  PRINTF(" local/remote port %u/%u\n", UIP_HTONS(server_conn->lport),
-         UIP_HTONS(server_conn->rport));
+    PRINTF("Created a server connection with remote address ");
+    PRINT6ADDR(&server_conn->ripaddr);
+    PRINTF(" local/remote port %u/%u\n", UIP_HTONS(server_conn->lport),
+            UIP_HTONS(server_conn->rport));
 
-  while(1) {
-    PROCESS_WAIT_UNTIL(ev == tcpip_event);
-    tcpip_handler();
-  }
-  PROCESS_END();
+    while(1) {
+        PROCESS_WAIT_UNTIL(ev == tcpip_event);
+        tcpip_handler();
+    }
+    PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
 
