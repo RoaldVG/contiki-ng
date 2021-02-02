@@ -65,7 +65,7 @@ PROCESS_THREAD(energest_sink_process, ev, data)
     PROCESS_BEGIN();
 
 #if MAC_CONF_WITH_TSCH
-    tsch_set_coordinator(linkaddr_cmp(&energest_addr, &linkaddr_node_addr));
+    tsch_set_coordinator(1);
 #endif /* MAC_CONF_WITH_TSCH */
 
     nullnet_set_input_callback(input_callback);

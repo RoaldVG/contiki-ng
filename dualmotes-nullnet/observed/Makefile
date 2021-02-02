@@ -1,4 +1,5 @@
 CONTIKI_PROJECT =  observed-sender observed-receiver energest-sink
+CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 all:$(CONTIKI_PROJECT)
 
 CONTIKI = ../..

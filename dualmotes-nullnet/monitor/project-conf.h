@@ -8,16 +8,16 @@
 #define IO_WIDTH 11
 
 // UART pins are used for parallel communication, serial comm over UART overwrites some pins
-#define UART_CONF_ENABLE 1
+#define UART_CONF_ENABLE 0
 
 #include "stdint.h"
 struct testmsg {
-    uint8_t  observed_seqno;
+    uint16_t  observed_seqno;
     uint16_t monitor_seqno;
     uint32_t energy;
     uint16_t counter_ADC;
-    uint16_t timestamp_app;
-    uint16_t timestamp_mac;
+    uint32_t timestamp_app;
+    uint32_t timestamp_mac;
 };
 
 #endif // PROJECT_CONF_H_

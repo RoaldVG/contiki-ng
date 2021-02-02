@@ -61,8 +61,7 @@
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-const linkaddr_t recv_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0xb0 }};
-const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9d, 0x89 }};
+const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0x84 }};
 
 uint16_t seqno=0;
 struct energestmsg prev_energest_vals;
@@ -125,7 +124,7 @@ send_energest()
   	LOG_INFO_("\n");
 
     nullnet_buf = (uint8_t *) &energest_values;
-    nullnet_len = sizeof(struct energestmsg);
+    nullnet_len = sizeof(energest_values);
 
 	NETSTACK_NETWORK.output(&energest_addr);
 
@@ -159,7 +158,7 @@ void input_callback(const void *data, uint16_t len,
     }		//least significant bit in seqno_bits[0]
 
     clear_GPIOS();
-        
+    
     if ( seqno_bits[0]==1 )		GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6));       //  write a 1 in A6
     if ( seqno_bits[1]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0));       //  write a 1 in C0
     if ( seqno_bits[2]==1 )		GPIO_SET_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1));       //  write a 1 in C1
@@ -171,7 +170,7 @@ void input_callback(const void *data, uint16_t len,
     if ( seqno_bits[8]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(0));       //  write a 1 in D0
     if ( seqno_bits[9]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));       //  write a 1 in D1
     if ( seqno_bits[10]==1 )	GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));       //  write a 1 in D2
-        
+    
 	if (state == 0){
 		GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
 		state = 1;
@@ -198,7 +197,7 @@ PROCESS_THREAD(observed_receiver_process, ev, data)
 	prev_energest_vals.totaltime = 0;
 
 #if MAC_CONF_WITH_TSCH
-  	tsch_set_coordinator(linkaddr_cmp(&energest_addr, &linkaddr_node_addr));
+  	tsch_set_coordinator(0);
 #endif /* MAC_CONF_WITH_TSCH */
 
     GPIOS_init();

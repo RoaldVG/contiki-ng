@@ -71,9 +71,9 @@
 #define SEND_INTERVAL  AVERAGE_SEND_INTERVAL
 #endif
 
-const linkaddr_t transm_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9c, 0x47 }};
-const linkaddr_t recv_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0xb0 }};
-const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9d, 0x89 }};
+const linkaddr_t transm_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe3, 0x7c }};
+const linkaddr_t recv_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9b, 0x83 }};
+const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0x84 }};
 
 uint16_t seqno=0;
 struct energestmsg prev_energest_vals;
@@ -147,7 +147,7 @@ send_energest()
   	LOG_INFO_("\n");
 
     nullnet_buf = (uint8_t *) &energest_values;
-	nullnet_len = sizeof(struct energestmsg);
+	nullnet_len = sizeof(energest_values);
 
 	NETSTACK_NETWORK.output(&energest_addr);
 
@@ -231,7 +231,7 @@ PROCESS_THREAD(observed_sender_process, ev, data)
   	PROCESS_BEGIN();
 
 #if MAC_CONF_WITH_TSCH
-  	tsch_set_coordinator(linkaddr_cmp(&energest_addr, &linkaddr_node_addr));
+  	tsch_set_coordinator(0);
 #endif /* MAC_CONF_WITH_TSCH */
 
   	GPIOS_init();

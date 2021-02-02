@@ -48,7 +48,6 @@
 
 #include "dev/gpio.h"
 #include "dev/gpio-hal.h"
-#include "dev/ioc.h"
 #include "dev/zoul-sensors.h"
 #include "dev/adc-zoul.h"
 #include <stdio.h>
@@ -64,7 +63,7 @@
  * Interval between consecutive probes of the triger bit P1.0
  */
 
-#define ADC_READ_INTERVAL (CLOCK_SECOND/2)
+#define ADC_READ_INTERVAL (CLOCK_SECOND/128)
 
 /* 
  * Data structure of sent messages
@@ -80,9 +79,9 @@ uint8_t   flag;
  */ 
 uint8_t power = 31;
 
-const linkaddr_t sink_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0x84 }};
+linkaddr_t sink_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9d, 0x89 }};
 
-static void send_packet(gpio_hal_pin_mask_t pin_mask);
+//static void send_packet(gpio_hal_pin_mask_t pin_mask);
 
 /*---------------------------------------------------------------------------*/
 PROCESS(monitor_sender_process, "Monitor sender process");
@@ -90,14 +89,15 @@ AUTOSTART_PROCESSES(&monitor_sender_process);
 /*--------------------------------------------------------------------------------
  * SETTING THE GPIOS
  *-------------------------------------------------------------------------------*/
-static gpio_hal_event_handler_t msg_handler = {
+/*static gpio_hal_event_handler_t msg_handler = {
   .next = NULL,
   .handler = send_packet,
   .pin_mask = gpio_hal_pin_to_mask(7) << (GPIO_A_NUM << 3),
-};
+};*/
 void
 GPIOS_init(void)
 {
+	
     GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
   
     GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
@@ -112,25 +112,14 @@ GPIOS_init(void)
     GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
 	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 
-    // Configure PA7 to raise an interrupt on a any edge
-	/*
-	gpio_hal_pin_t irq_pin = (GPIO_A_NUM << 3) + 7;
-	gpio_hal_pin_cfg_t cfg;
-	//cfg = GPIO_HAL_PIN_CFG_EDGE_BOTH | GPIO_HAL_PIN_CFG_INT_ENABLE;
-	gpio_hal_arch_pin_set_input(GPIO_HAL_NULL_PORT, irq_pin);
-	cfg = gpio_hal_arch_pin_cfg_get(GPIO_HAL_NULL_PORT, irq_pin) & GPIO_HAL_PIN_CFG_EDGE_BOTH & GPIO_HAL_PIN_CFG_INT_ENABLE;
-	gpio_hal_arch_interrupt_enable(GPIO_HAL_NULL_PORT, irq_pin);
-	gpio_hal_register_handler(&msg_handler);
-	/*/
     GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	GPIO_DETECT_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	GPIO_TRIGGER_SINGLE_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	GPIO_DETECT_RISING(GPIO_A_BASE,GPIO_PIN_MASK(7));
-    gpio_hal_register_handler(&msg_handler);
-	GPIO_ENABLE_INTERRUPT(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	NVIC_EnableIRQ(PIN_TO_PORT(7));
-	
+	//GPIO_DETECT_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	//GPIO_TRIGGER_SINGLE_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	//GPIO_DETECT_RISING(GPIO_A_BASE,GPIO_PIN_MASK(7));
+    //gpio_hal_register_handler(&msg_handler);
+	//GPIO_ENABLE_INTERRUPT(GPIO_A_BASE,GPIO_PIN_MASK(7));
+	//NVIC_EnableIRQ(PIN_TO_PORT(7));
 }
 /*---------------------------------------------------------------------------*/
 uint8_t
@@ -155,7 +144,7 @@ read_GPIOS(void)
 }
 /*---------------------------------------------------------------------------*/
 static void
-send_packet(gpio_hal_pin_mask_t pin_mask)
+send_packet()
 {
 	monitor_seqno++;
 	struct testmsg msg;
@@ -167,39 +156,46 @@ send_packet(gpio_hal_pin_mask_t pin_mask)
 	msg.timestamp_app = RTIMER_NOW();
 	msg.timestamp_mac = 0;
 
-	LOG_INFO("Data send to sink ");
+	LOG_INFO("Data sent to sink ");
     LOG_INFO_LLADDR(&sink_addr);
-    LOG_INFO("\n");
+    LOG_INFO_("\n");
 
-    memcpy(nullnet_buf, &msg, sizeof(msg));
+    nullnet_buf = (uint8_t *) &msg;
+	nullnet_len = sizeof(msg);
 	NETSTACK_NETWORK.output(&sink_addr);
 
     ADCResult=0;
     counter=0;
 }
 /*---------------------------------------------------------------------------*/
+int prev_io_flag = 0;
 PROCESS_THREAD(monitor_sender_process, ev, data)
 {
     static struct etimer periodic;
+	//linkaddr_t local_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0x00, 0x01, 0x11 }};
+	//linkaddr_set_node_addr(&local_addr);
 	
     PROCESS_BEGIN();
-
-	GPIOS_init();
 
 	NETSTACK_RADIO.set_value(RADIO_PARAM_TXPOWER, power);
 
     // init ADC on A4, at 64 bit rate
-    adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC_ALL);
+    adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC2);
     counter = 0;
 
     etimer_set(&periodic, ADC_READ_INTERVAL);
+	GPIOS_init();
     while(1) {
         PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
+
+		if(prev_io_flag != GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7))){
+			send_packet();
+			prev_io_flag = GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
+		}
 
 		counter++;
 		int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC2);
 		ADCResult += ADC_val;
-		printf("%d\n", read_GPIOS());
         etimer_reset(&periodic);
     }
 
