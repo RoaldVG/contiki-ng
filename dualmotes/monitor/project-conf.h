@@ -1,1 +1,0 @@
-#define ZOUL_CONF_USE_CC1200_RADIO 1

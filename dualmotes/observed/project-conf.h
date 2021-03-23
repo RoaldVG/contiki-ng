@@ -1,1 +1,0 @@
-#define UART_CONF_ENABLE 0 // UART pins are used for parallel communication, serial comm over UART overwrites some pins
