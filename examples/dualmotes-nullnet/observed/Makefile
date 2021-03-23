@@ -13,8 +13,4 @@ ifneq ($(TARGET),zoul)
 $(error Software is platform specific, only for Zolertia Zoul.)
 endif
 
-MAKE_MAC = MAKE_MAC_TSCH
-MAKE_WITH_ORCHESTRA ?= 0
-#MAKE_MAC ?= MAKE_MAC_CSMA
-MAKE_NET = MAKE_NET_NULLNET
 include $(CONTIKI)/Makefile.include
