@@ -6,15 +6,12 @@
 #include "stdint.h"
 
 //#define LOG_CONF_LEVEL_NULLNET LOG_LEVEL_INFO
-
+#define ENERGEST_CONF_ON 0      // set this to 0 to also not sned to the energest-sink
 #define ENERGEST_FREQ 100       // every x messages a message is sent to the energest sink
+
 #define BC 0 // Broadcast test or not
+
 #define IO_WIDTH 11
-#define ENERGEST_CONF_ON 1
-
-#define MAC_CONF_WITH_TSCH 1
-
-#define TSCH_SCHEDULE_CONF_DEFAULT_LENGTH 3
 
 // UART pins are used for parallel communication, serial comm over UART overwrites some pins
 #define UART_CONF_ENABLE 0

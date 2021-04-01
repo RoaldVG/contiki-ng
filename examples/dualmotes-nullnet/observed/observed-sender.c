@@ -60,7 +60,7 @@
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define AVERAGE_SEND_INTERVAL CLOCK_SECOND
+#define AVERAGE_SEND_INTERVAL CLOCK_SECOND/2
 #define RANDOM 0
 #define MIN_SEND_INTERVAL 1
 #define INTERVAL_RANGE (AVERAGE_SEND_INTERVAL - MIN_SEND_INTERVAL) * 2 
@@ -73,7 +73,9 @@
 
 const linkaddr_t transm_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe3, 0x7c }};
 const linkaddr_t recv_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9b, 0x83 }};
+#if ENERGEST_CONF_ON
 const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0x84 }};
+#endif
 
 uint16_t seqno=0;
 struct energestmsg prev_energest_vals;
@@ -128,6 +130,7 @@ void input_callback(const void *data, uint16_t len,
     LOG_INFO_("\n");
 }
 /*---------------------------------------------------------------------------*/
+#if ENERGEST_CONF_ON
 static void
 send_energest()
 {
@@ -158,10 +161,11 @@ send_energest()
     prev_energest_vals.listen = energest_type_time(ENERGEST_TYPE_LISTEN);
     prev_energest_vals.totaltime = RTIMER_NOW();
 }
+#endif /* ENERGEST_CONF_ON */
 /*---------------------------------------------------------------------------*/
 int state = 0;
 static void
-send_packet()//void *ptr)
+send_packet()
 {
 	struct testmsg msg;
 
@@ -191,13 +195,15 @@ send_packet()//void *ptr)
 	if ( seqno_bits[9]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));       //  write a 1 in D1
 	if ( seqno_bits[10]==1 )	GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));       //  write a 1 in D2
 	
-	if (state == 0){
-		GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
-		state = 1;
-	}
-	else{
-		GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
-		state = 0;
+	if (seqno%1==0){
+		if (state == 0){
+			GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
+			state = 1;
+		}
+		else{
+			GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
+			state = 0;
+		}
 	}
 
   	LOG_INFO("DATA sent to ");
@@ -212,14 +218,15 @@ send_packet()//void *ptr)
 	NETSTACK_NETWORK.output(&recv_addr);
 #endif
 
+#if ENERGEST_CONF_ON
 	if (seqno%ENERGEST_FREQ==0)
-		send_energest();
+	send_energest();
+#endif
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(observed_sender_process, ev, data)
 {
   	static struct etimer periodic;
-  	//static struct ctimer backoff_timer;
 
   	prev_energest_vals.cpu = 0;
     prev_energest_vals.lpm = 0;
@@ -243,7 +250,6 @@ PROCESS_THREAD(observed_sender_process, ev, data)
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic));
 		etimer_reset(&periodic);
 		send_packet();
-		//ctimer_set(&backoff_timer, SEND_INTERVAL, send_packet, NULL);
 	}
 
   	PROCESS_END();

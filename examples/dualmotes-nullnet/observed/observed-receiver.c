@@ -61,7 +61,9 @@
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
+#if ENERGEST_CONF_ON
 const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0x84 }};
+#endif
 
 uint16_t seqno=0;
 struct energestmsg prev_energest_vals;
@@ -105,6 +107,7 @@ clear_GPIOS(void)
 	GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 }
 /*---------------------------------------------------------------------------*/
+#if ENERGEST_CONF_ON
 static void
 send_energest()
 {
@@ -135,6 +138,7 @@ send_energest()
     prev_energest_vals.listen = energest_type_time(ENERGEST_TYPE_LISTEN);
     prev_energest_vals.totaltime = RTIMER_NOW();
 }
+#endif /* ENERGEST_CONF_ON */
 /*---------------------------------------------------------------------------*/
 int state = 0;
 void input_callback(const void *data, uint16_t len,
@@ -171,17 +175,21 @@ void input_callback(const void *data, uint16_t len,
     if ( seqno_bits[9]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));       //  write a 1 in D1
     if ( seqno_bits[10]==1 )	GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));       //  write a 1 in D2
     
-	if (state == 0){
-		GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
-		state = 1;
-	}
-	else{
-		GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
-		state = 0;
+	if (seqno%1==0){
+		if (state == 0){
+			GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
+			state = 1;
+		}
+		else{
+			GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
+			state = 0;
+		}
 	}
 
+#if ENERGEST_CONF_ON
     if (seqno%ENERGEST_FREQ==0)
 		send_energest();
+#endif
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(observed_receiver_process, ev, data)
