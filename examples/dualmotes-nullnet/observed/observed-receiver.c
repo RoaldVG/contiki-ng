@@ -51,6 +51,7 @@
 #include "sys/rtimer.h"
 #include "sys/energest.h"
 #include "dev/gpio.h"
+#include "dev/ioc.h"
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -62,7 +63,7 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 #if ENERGEST_CONF_ON
-const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x19, 0x32, 0xe4, 0x84 }};
+const linkaddr_t energest_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x14, 0xd5, 0x2d, 0xe1 }};
 #endif
 
 uint16_t seqno=0;
@@ -74,8 +75,32 @@ AUTOSTART_PROCESSES(&observed_receiver_process);
 void
 GPIOS_init(void)
 {
+
+    ioc_set_over(0, 6, IOC_OVERRIDE_OE);
+    ioc_set_over(0, 7, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 0, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 1, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 2, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 3, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 4, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 5, IOC_OVERRIDE_OE);
+    ioc_set_over(2, 6, IOC_OVERRIDE_OE);
+    ioc_set_over(3, 0, IOC_OVERRIDE_OE);
+    ioc_set_over(3, 1, IOC_OVERRIDE_OE);
+    ioc_set_over(3, 2, IOC_OVERRIDE_OE);
+
+    GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(6));
+    GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_SET_OUTPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
 	GPIO_SET_OUTPUT(GPIO_A_BASE,GPIO_PIN_MASK(7));		//GPIO PA7
+
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+	GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+	GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
+	GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
   
  	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
 	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
@@ -85,25 +110,33 @@ GPIOS_init(void)
 	GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
     GPIO_SET_OUTPUT(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
 
+    GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
+    GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
+
 	GPIO_SET_OUTPUT(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
     GPIO_SET_OUTPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
 	GPIO_SET_OUTPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 
     GPIO_CLR_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
+    
 }
 /*---------------------------------------------------------------------------*/
 void
 clear_GPIOS(void)
 {
-//clear all output pinsenergest_addr(1));		//GPIO PC1
-    GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
-    GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+    GPIO_CLR_PIN(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
+	
+ 	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
+  	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+  	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
 	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
 	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
-    GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
+  	GPIO_CLR_PIN(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
 
 	GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
-    GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+  	GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
 	GPIO_CLR_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 }
 /*---------------------------------------------------------------------------*/
@@ -155,6 +188,7 @@ void input_callback(const void *data, uint16_t len,
     LOG_INFO_LLADDR(src);
     LOG_INFO_("\n");
 
+
     static uint8_t seqno_bits[IO_WIDTH];			
     uint8_t i;
     for (i = 0; i < IO_WIDTH; i++) {
@@ -175,16 +209,14 @@ void input_callback(const void *data, uint16_t len,
     if ( seqno_bits[9]==1 )		GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(1));       //  write a 1 in D1
     if ( seqno_bits[10]==1 )	GPIO_SET_PIN(GPIO_D_BASE,GPIO_PIN_MASK(2));       //  write a 1 in D2
     
-	if (seqno%1==0){
-		if (state == 0){
-			GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
-			state = 1;
-		}
-		else{
-			GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
-			state = 0;
-		}
-	}
+    if (state == 0){
+        GPIO_SET_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
+        state = 1;
+    }
+    else{
+        GPIO_CLR_PIN(GPIO_PORT_TO_BASE(0),GPIO_PIN_MASK(7));
+        state = 0;
+    }
 
 #if ENERGEST_CONF_ON
     if (seqno%ENERGEST_FREQ==0)

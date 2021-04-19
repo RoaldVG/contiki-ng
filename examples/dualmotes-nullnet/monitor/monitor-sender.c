@@ -42,9 +42,10 @@
  */
 
 #include "contiki.h"
+#include "project-conf.h"
+#include "sys/rtimer.h"
 #include "net/netstack.h"
 #include "net/nullnet/nullnet.h"
-#include "project-conf.h"
 
 #include "dev/gpio.h"
 #include "dev/gpio-hal.h"
@@ -53,6 +54,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include "dev/ioc.h"
 
 /* Log configuration */
 #include "sys/log.h"
@@ -64,6 +66,15 @@
  */
 
 #define ADC_READ_INTERVAL (CLOCK_SECOND/128)
+
+struct testmsg {
+    uint16_t  observed_seqno;
+    uint16_t monitor_seqno;
+    uint32_t energy;
+    uint16_t counter_ADC;
+    rtimer_clock_t timestamp_app;
+    rtimer_clock_t timestamp_mac;
+};
 
 /* 
  * Data structure of sent messages
@@ -79,7 +90,8 @@ uint8_t   flag;
  */ 
 uint8_t power = 31;
 
-linkaddr_t sink_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0xe6, 0x9d, 0x89 }};
+linkaddr_t sink_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x14, 0xd5, 0x2d, 0xc8 }};
+
 
 //static void send_packet(gpio_hal_pin_mask_t pin_mask);
 
@@ -89,18 +101,21 @@ AUTOSTART_PROCESSES(&monitor_sender_process);
 /*--------------------------------------------------------------------------------
  * SETTING THE GPIOS
  *-------------------------------------------------------------------------------*/
-/*static gpio_hal_event_handler_t msg_handler = {
-  .next = NULL,
-  .handler = send_packet,
-  .pin_mask = gpio_hal_pin_to_mask(7) << (GPIO_A_NUM << 3),
-};*/
 void
 GPIOS_init(void)
 {
-	
+	GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(6));
     GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(6));		//GPIO PA6
   
-    GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
+	GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
+	GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(4));		//GPIO PC4
+	GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
+    GPIO_SOFTWARE_CONTROL(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
+
+	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(0));		//GPIO PC0
 	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(1));		//GPIO PC1
     GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(2));		//GPIO PC2
     GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(3));		//GPIO PC3
@@ -108,21 +123,19 @@ GPIOS_init(void)
 	GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(5));		//GPIO PC5
     GPIO_SET_INPUT(GPIO_C_BASE,GPIO_PIN_MASK(6));		//GPIO PC6
 
+	GPIO_SOFTWARE_CONTROL(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
+    GPIO_SOFTWARE_CONTROL(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
+	GPIO_SOFTWARE_CONTROL(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
+
 	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(0));		//GPIO PD0
     GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(1));		//GPIO PD1
 	GPIO_SET_INPUT(GPIO_D_BASE,GPIO_PIN_MASK(2));		//GPIO PD2
 
     GPIO_SOFTWARE_CONTROL(GPIO_A_BASE,GPIO_PIN_MASK(7));
 	GPIO_SET_INPUT(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	//GPIO_DETECT_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	//GPIO_TRIGGER_SINGLE_EDGE(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	//GPIO_DETECT_RISING(GPIO_A_BASE,GPIO_PIN_MASK(7));
-    //gpio_hal_register_handler(&msg_handler);
-	//GPIO_ENABLE_INTERRUPT(GPIO_A_BASE,GPIO_PIN_MASK(7));
-	//NVIC_EnableIRQ(PIN_TO_PORT(7));
 }
 /*---------------------------------------------------------------------------*/
-uint8_t
+uint16_t
 read_GPIOS(void)
 {
 	//reading the value in each pin
@@ -147,14 +160,13 @@ static void
 send_packet()
 {
 	monitor_seqno++;
-	struct testmsg msg;
+	static struct testmsg msg;
 
 	msg.observed_seqno = read_GPIOS();	
 	msg.monitor_seqno = monitor_seqno;	
 	msg.energy = ADCResult;
 	msg.counter_ADC = counter;
 	msg.timestamp_app = RTIMER_NOW();
-	msg.timestamp_mac = 0;
 
 	LOG_INFO("Data sent to sink ");
     LOG_INFO_LLADDR(&sink_addr);
@@ -166,12 +178,14 @@ send_packet()
 
     ADCResult=0;
     counter=0;
+	NETSTACK_RADIO.get_object(RADIO_PARAM_LAST_PACKET_TIMESTAMP, &msg.timestamp_mac, sizeof(rtimer_clock_t));
 }
 /*---------------------------------------------------------------------------*/
 int prev_io_flag = 0;
 PROCESS_THREAD(monitor_sender_process, ev, data)
 {
     static struct etimer periodic;
+	static struct etimer sendtimer;
 	//linkaddr_t local_addr = {{ 0x00, 0x12, 0x4b, 0x00, 0x18, 0x00, 0x01, 0x11 }};
 	//linkaddr_set_node_addr(&local_addr);
 	
@@ -179,24 +193,36 @@ PROCESS_THREAD(monitor_sender_process, ev, data)
 
 	NETSTACK_RADIO.set_value(RADIO_PARAM_TXPOWER, power);
 
-    // init ADC on A4, at 64 bit rate
+    // init ADC on A4
     adc_zoul.configure(SENSORS_HW_INIT,ZOUL_SENSORS_ADC2);
     counter = 0;
 
     etimer_set(&periodic, ADC_READ_INTERVAL);
+	etimer_set(&sendtimer, CLOCK_SECOND);
 	GPIOS_init();
     while(1) {
-        PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
+		PROCESS_YIELD();
+        //PROCESS_WAIT_UNTIL(etimer_expired(&periodic));
 
-		if(prev_io_flag != GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7))){
-			send_packet();
-			prev_io_flag = GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
+		if(ev == PROCESS_EVENT_TIMER){
+			if(data == &periodic){
+
+				if(prev_io_flag != GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7))){
+					send_packet();
+					prev_io_flag = GPIO_READ_PIN(GPIO_A_BASE,GPIO_PIN_MASK(7));
+				}
+			
+				counter++;
+				int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC2);
+				ADCResult += ADC_val;
+				etimer_reset(&periodic);	
+			}
+			/*
+			if(data == &sendtimer){
+				send_packet();
+				etimer_reset(&sendtimer);
+			}*/
 		}
-
-		counter++;
-		int ADC_val = adc_zoul.value(ZOUL_SENSORS_ADC2);
-		ADCResult += ADC_val;
-        etimer_reset(&periodic);
     }
 
     PROCESS_END();

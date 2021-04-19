@@ -2,7 +2,7 @@ CONTIKI_PROJECT =  monitor-sender monitor-sink
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 all:$(CONTIKI_PROJECT)
 
-CONTIKI = ../..
+CONTIKI = ../../..
 
 ifndef TARGET
 TARGET=zoul
