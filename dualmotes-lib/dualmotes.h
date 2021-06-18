@@ -1,11 +1,7 @@
 #ifndef DUALMOTES_H_
 #define DUALMOTES_H_
 
-#include "contiki.h"
-#include "dev/gpio.h"
-#include "stdint.h"
-#include "dev/zoul-sensors.h"
-#include "dev/adc-zoul.h"
+#include <stdint.h>
 
 #ifndef DUALMOTES_VERSION
 #define DUALMOTES_VERSION 2
@@ -35,9 +31,9 @@
 #define GPIO2_IOCFG         CC1200_IOCFG_PKT_SYNC_RXTX
 #endif /* ZOUL_CONF_USE_CC1200_RADIO */
 
-/* Log configuration */
-#include "sys/log.h"
-#define LOG_MODULE "Dualmotes"
-#define LOG_LEVEL LOG_LEVEL_INFO
+void dualmotes_init(void);
+void dualmotes_send(uint16_t number);
+
+extern process_event_t gpio_flag_event;
 
 #endif /* DUALMOTES_H_ */
